@@ -62,6 +62,20 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const updateProfile = async (updates) => {
+        const response = await api.put('/auth/profile', updates);
+        const updatedUser = response.data.data;
+        // Merge with existing user data (keep token/refreshToken from local)
+        const merged = { ...user, ...updatedUser };
+        localStorage.setItem('user', JSON.stringify(merged));
+        setUser(merged);
+        return merged;
+    };
+
+    const changePassword = async (currentPassword, newPassword) => {
+        await api.put('/auth/change-password', { currentPassword, newPassword });
+    };
+
     const value = {
         user,
         token,
@@ -69,6 +83,8 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        updateProfile,
+        changePassword,
         isAuthenticated: !!token
     };
 

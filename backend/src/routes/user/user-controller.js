@@ -1,37 +1,6 @@
 import User from "./user-model.js";
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { sanitizeData } from "../../services/sanitize-service.js";
-
-export const login = async (req, res) => {
-  try {
-
-    const { email, password } = req.body;
-
-    let user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User Not Found' });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
-
-    const payload = {
-        id: user._id,
-        name : user.name,
-        email: user.email,
-        roleId: user.roleId
-    };
-
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' }, (err, token) => {
-      if (err) throw err;
-      res.json({ data: {...payload, token} });
-    });
-
-
-  } catch (error) {
-    return res.status(500).json({ message: 'Server error', error: error });
-  }
-}
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -58,14 +27,14 @@ export const getAllUsers = async (req, res) => {
 };
 
 const parseRequestParams = (req) => {
-  const defaultParams = { query: {}, sort: {}, limit: 10, page: 1 };
+  const defaultParams = { query: { isDeleted: false }, sort: {}, limit: 10, page: 1 };
   
   if (!req.query.data) return defaultParams;
 
   try {
     const data = JSON.parse(req.query.data);
     return {
-      query: parseSearchFilters(data.search),
+      query: { ...parseSearchFilters(data.search), isDeleted: false },
       sort: data.sorting || {},
       limit: Math.max(1, parseInt(data.dataLimit, 10) || defaultParams.limit),
       page: Math.max(1, parseInt(data.pagination, 10) || defaultParams.page)
@@ -89,6 +58,7 @@ const parseSearchFilters = (search) => {
 const fetchUsers = async (query, sort, limit, page) => {
   const skip = (page - 1) * limit;
   return User.find(query)
+    .select('-password -refreshToken')
     .sort(Object.keys(sort).length > 0 ? sort : undefined)
     .skip(skip)
     .limit(limit)
@@ -109,86 +79,10 @@ const calculatePaginationInfo = (totalDocs, limit, page) => {
 };
 
 
-// export const getAllUsers = async (req, res) => {
-//   try {
-//     let query = {};
-//     let sort = {};
-//     let limit = 10; // Default limit
-//     let page = 1; // Default page
-
-//     if (req.query.data) {
-//       const data = JSON.parse(req.query.data);
-
-//       // Handle search filters
-//       if (data.search) {
-//         Object.keys(data.search).forEach(key => {
-//           query[key] = { $regex: data.search[key], $options: 'i' };
-//         });
-//       }
-
-//       // Handle sorting
-//       if (data.sorting) {
-//         sort = data.sorting;
-//       }
-
-//       // Handle data limit
-//       if (data.dataLimit) {
-//         limit = parseInt(data.dataLimit, 10) || limit;
-//       }
-
-//       // Handle pagination
-//       if (data.pagination) {
-//         page = parseInt(data.pagination, 10) || 1;
-//         // Ensure page is within bounds
-//         if (page < 1) page = 1;
-//       }
-//     }
-
-//     console.log('Query:', query);
-//     console.log('Sort:', sort);
-//     console.log('Limit:', limit);
-//     console.log('Page:', page);
-
-//     const skip = (page - 1) * limit;
-
-//     let userQuery = User.find(query);
-
-//     // Apply sorting if present
-//     if (Object.keys(sort).length > 0) {
-//       userQuery = userQuery.sort(sort);
-//     }
-
-//     // Count total documents for pagination info
-//     const totalDocs = await User.countDocuments(query);
-
-//     // Apply pagination
-//     userQuery = userQuery.skip(skip).limit(limit);
-
-//     const users = await userQuery.exec();
-
-//     // Prepare pagination info
-//     const totalPages = Math.ceil(totalDocs / limit);
-
-//     return res.status(200).json({
-//       data: users,
-//       pagination: {
-//         currentPage: page,
-//         totalPages: totalPages,
-//         pageSize: limit,
-//         totalDocs: totalDocs,
-//       }
-//     });
-//   } catch (error) {
-//     console.error('Error in getAllUsers:', error);
-//     return res.status(500).json({ message: 'Server error' });
-//   }
-// };
-
-
 export const getUserById = async (req, res) => {
   try {
     const _id = req.params.id;
-    const data = await User.findOne({ _id });
+    const data = await User.findOne({ _id, isDeleted: false }).select('-password -refreshToken');
     if(data){
       return res.status(200).json({data : data, message: 'User found successfully'});
     }else{
@@ -197,18 +91,16 @@ export const getUserById = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error });
   }
-
 };
 
 export const addUser = async (req, res) => {
     try {
-      let data = JSON.parse(req.body.data)
-      // let data = sanitizeData(body)
+      let body = JSON.parse(req.body.data)
+      let data = sanitizeData(body)
 
       if(req.file){
         data.pic = req.file.filename
       }
-      
 
       const { email, password, userName, firstName, lastName } = data;
 
@@ -244,8 +136,8 @@ export const addUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const _id = req.params.id;
-    let data = JSON.parse(req.body.data)
-    // let data = sanitizeData(body)
+    let body = JSON.parse(req.body.data)
+    let data = sanitizeData(body)
     if(req.file){
       data.pic = req.file.filename
     }
@@ -288,18 +180,17 @@ export const updateUser = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
   try {    
-    // Code updation by me
-
-    // let filter = { _id: req.params.id }
-    // const data = await User.deleteOne(filter)
     const _id = req.params.id;
-    const data = await User.findByIdAndDelete(_id)
+    const user = await User.findById(_id);
 
-    if(data){
-      return res.status(200).json({data : data, message: 'User deleted successfully'});
-    }else{
+    if(!user || user.isDeleted){
       return res.status(404).json({message: 'No User Found'});
     }
+
+    user.isDeleted = true;
+    await user.save();
+
+    return res.status(200).json({data : user, message: 'User deleted successfully'});
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error });
   }

@@ -7,6 +7,7 @@ const Sidebar = ({
     onSelectConversation,
     onNewChat,
     onLogout,
+    onProfileClick,
     currentUser,
     onlineUsers,
     loading,
@@ -121,7 +122,7 @@ const Sidebar = ({
 
             {/* User Profile Section */}
             <div className="sidebar-footer">
-                <div className="user-profile">
+                <div className="user-profile" onClick={onProfileClick} style={{ cursor: 'pointer' }} title="View profile">
                     <div className="avatar-circle avatar-circle--small">
                         {currentUser?.firstName?.[0]?.toUpperCase() || 'U'}
                     </div>

@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSocket } from '../context/SocketContext';
 import MessageInput from './MessageInput';
 import './ChatWindow.css';
 
-const ChatWindow = ({ conversation, messages, currentUser, onlineUsers, onMessageSent, onBackClick }) => {
+const ChatWindow = ({ conversation, messages, currentUser, onlineUsers, onBackClick, hasMore, loadingMore, onLoadMore }) => {
     const { socket, markMessagesRead } = useSocket();
     const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
     const [typingUsers, setTypingUsers] = useState({});
+    const prevMessagesLenRef = useRef(0);
+    const isInitialLoadRef = useRef(true);
 
     const otherParticipant = useMemo(() => {
         if (!conversation) return null;
@@ -15,10 +18,50 @@ const ChatWindow = ({ conversation, messages, currentUser, onlineUsers, onMessag
 
     const isOtherOnline = otherParticipant && onlineUsers.includes(otherParticipant._id);
 
-    // Auto scroll to bottom on new messages
+    // Clear typing state when conversation changes
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setTypingUsers({});
+        isInitialLoadRef.current = true;
+    }, [conversation?._id]);
+
+    // Auto-scroll: only on initial load or when new messages arrive at the bottom
+    useEffect(() => {
+        if (!messages.length) return;
+
+        const container = messagesContainerRef.current;
+        if (!container) return;
+
+        // If this is initial load or new messages appended (not prepended via pagination)
+        if (isInitialLoadRef.current || messages.length > prevMessagesLenRef.current) {
+            const wasNearBottom =
+                isInitialLoadRef.current ||
+                container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+
+            if (wasNearBottom) {
+                messagesEndRef.current?.scrollIntoView({ behavior: isInitialLoadRef.current ? 'instant' : 'smooth' });
+            }
+            isInitialLoadRef.current = false;
+        }
+
+        prevMessagesLenRef.current = messages.length;
     }, [messages]);
+
+    // Scroll-to-top detection for loading older messages
+    const handleScroll = useCallback(() => {
+        const container = messagesContainerRef.current;
+        if (!container || !hasMore || loadingMore) return;
+
+        if (container.scrollTop < 60) {
+            // Remember scroll height before prepending
+            const prevScrollHeight = container.scrollHeight;
+            onLoadMore();
+            // After messages are prepended, restore scroll position
+            requestAnimationFrame(() => {
+                const newScrollHeight = container.scrollHeight;
+                container.scrollTop = newScrollHeight - prevScrollHeight;
+            });
+        }
+    }, [hasMore, loadingMore, onLoadMore]);
 
     // Listen for typing events
     useEffect(() => {
@@ -40,18 +83,12 @@ const ChatWindow = ({ conversation, messages, currentUser, onlineUsers, onMessag
             }
         };
 
-        const handleMessagesRead = ({ conversationId, readBy }) => {
-            // Could update message read status in UI here
-        };
-
         socket.on('userTyping', handleTyping);
         socket.on('userStopTyping', handleStopTyping);
-        socket.on('messagesRead', handleMessagesRead);
 
         return () => {
             socket.off('userTyping', handleTyping);
             socket.off('userStopTyping', handleStopTyping);
-            socket.off('messagesRead', handleMessagesRead);
         };
     }, [socket, conversation, currentUser]);
 
@@ -150,7 +187,20 @@ const ChatWindow = ({ conversation, messages, currentUser, onlineUsers, onMessag
             </div>
 
             {/* Messages Area */}
-            <div className="messages-container">
+            <div className="messages-container" ref={messagesContainerRef} onScroll={handleScroll}>
+                {loadingMore && (
+                    <div className="load-more-indicator">
+                        <div className="loading-spinner loading-spinner--small"></div>
+                        <span>Loading older messages...</span>
+                    </div>
+                )}
+
+                {hasMore && !loadingMore && (
+                    <div className="load-more-indicator">
+                        <button className="load-more-btn" onClick={onLoadMore}>Load older messages</button>
+                    </div>
+                )}
+
                 {messages.map((msg, index) => {
                     const senderId = msg.sender?._id || msg.sender;
                     const isMine = senderId === currentUser?.id;
@@ -204,10 +254,7 @@ const ChatWindow = ({ conversation, messages, currentUser, onlineUsers, onMessag
             </div>
 
             {/* Message Input */}
-            <MessageInput
-                conversationId={conversation._id}
-                onMessageSent={onMessageSent}
-            />
+            <MessageInput conversationId={conversation._id} />
         </div>
     );
 };

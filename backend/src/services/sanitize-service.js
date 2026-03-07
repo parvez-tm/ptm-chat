@@ -1,8 +1,15 @@
-import DOMPurify from 'dompurify';
+/**
+ * Server-side input sanitizer.
+ * Strips HTML tags and trims strings recursively.
+ */
+
+const stripHtml = (str) => {
+  return str.replace(/<[^>]*>/g, '').trim();
+};
 
 export const sanitizeData = (value) => {
   if (typeof value === 'string') {
-    return DOMPurify.sanitize(value);
+    return stripHtml(value);
   }
 
   if (typeof value === 'object' && value !== null) {
@@ -15,28 +22,5 @@ export const sanitizeData = (value) => {
     return sanitizedObject;
   }
 
-  return value; // If the value is neither string nor object, return it as is
-} 
-// export const sanitizeBody = (obj) => {
-//     try {
-//       let sanitizedObject = {};
-  
-//       for (let key of Object.keys(obj)) {
-//         if (obj[key] == false || obj[key]) {
-//           if (obj[key] == "" || obj[key] == "null") {
-//             sanitizedObject[key] = null;
-//             continue;
-//           } else {
-//             sanitizedObject[key] = obj[key];
-//           }
-//         }
-//       }
-  
-//       if (!Object.keys(sanitizedObject).length) {
-//         return false;
-//       }
-//       return sanitizedObject;
-//     } catch (error) {
-//       return false;
-//     }
-//   };
+  return value;
+};

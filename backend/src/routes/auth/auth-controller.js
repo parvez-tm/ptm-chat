@@ -2,6 +2,7 @@ import User from '../user/user-model.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import redisClient from '../../config/redis.js';
+import { sanitizeData } from '../../services/sanitize-service.js';
 
 // Generate access token (short-lived)
 const generateAccessToken = (user) => {
@@ -198,6 +199,84 @@ export const getProfile = async (req, res) => {
         }
 
         return res.json({ data: user });
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+export const updateProfile = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const allowed = ['firstName', 'lastName', 'userName', 'phone', 'address', 'dateOfBirth'];
+        const raw = req.body;
+
+        // Sanitize and pick only allowed fields
+        const sanitized = sanitizeData(raw);
+        const updates = {};
+        for (const key of allowed) {
+            if (sanitized[key] !== undefined && sanitized[key] !== null) {
+                updates[key] = sanitized[key];
+            }
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ message: 'No valid fields to update' });
+        }
+
+        // Check for userName conflict if changing it
+        if (updates.userName) {
+            const existing = await User.findOne({
+                userName: updates.userName,
+                _id: { $ne: userId },
+                isDeleted: false
+            });
+            if (existing) {
+                return res.status(400).json({ message: 'Username already taken' });
+            }
+        }
+
+        const user = await User.findByIdAndUpdate(userId, updates, { new: true })
+            .select('-password -refreshToken')
+            .lean();
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        return res.json({ data: user, message: 'Profile updated successfully' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+export const changePassword = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'Current password and new password are required' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: 'New password must be at least 6 characters' });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Current password is incorrect' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        await user.save();
+
+        return res.json({ message: 'Password changed successfully' });
     } catch (error) {
         return res.status(500).json({ message: 'Server error', error: error.message });
     }

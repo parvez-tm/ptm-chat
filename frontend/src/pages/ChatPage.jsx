@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import Sidebar from '../components/Sidebar';
 import ChatWindow from '../components/ChatWindow';
 import UserList from '../components/UserList';
+import ProfileModal from '../components/ProfileModal';
 import api from '../utils/api';
 import './ChatPage.css';
 
@@ -14,8 +15,20 @@ const ChatPage = () => {
     const [activeConversation, setActiveConversation] = useState(null);
     const [messages, setMessages] = useState([]);
     const [showUserList, setShowUserList] = useState(false);
+    const [showProfile, setShowProfile] = useState(false);
     const [loadingConversations, setLoadingConversations] = useState(true);
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(true);
+
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMessages, setLoadingMessages] = useState(false);
+    const activeConvRef = useRef(null);
+
+    // Keep ref in sync for socket callbacks
+    useEffect(() => {
+        activeConvRef.current = activeConversation;
+    }, [activeConversation]);
 
     // Fetch conversations
     const fetchConversations = useCallback(async () => {
@@ -33,26 +46,48 @@ const ChatPage = () => {
         fetchConversations();
     }, [fetchConversations]);
 
-    // Fetch messages for active conversation
-    const fetchMessages = useCallback(async (conversationId) => {
+    // Fetch messages for active conversation (supports pagination)
+    const fetchMessages = useCallback(async (conversationId, pageNum = 1) => {
         try {
-            const { data } = await api.get(`/message/${conversationId}`);
-            setMessages(data.data.reverse()); // Reverse to show oldest first
+            setLoadingMessages(true);
+            const { data } = await api.get(`/message/${conversationId}?page=${pageNum}`);
+            const fetched = data.data.reverse(); // oldest first
+
+            if (pageNum === 1) {
+                setMessages(fetched);
+            } else {
+                setMessages(prev => [...fetched, ...prev]);
+            }
+
+            const pagination = data.pagination;
+            setHasMore(pagination ? pagination.currentPage < pagination.totalPages : false);
+            setPage(pageNum);
         } catch (error) {
             console.error('Error fetching messages:', error);
+        } finally {
+            setLoadingMessages(false);
         }
     }, []);
 
+    // Load older messages (called from ChatWindow on scroll-to-top)
+    const loadOlderMessages = useCallback(() => {
+        if (activeConversation && hasMore && !loadingMessages) {
+            fetchMessages(activeConversation._id, page + 1);
+        }
+    }, [activeConversation, hasMore, loadingMessages, page, fetchMessages]);
+
     // Handle conversation selection
     const handleSelectConversation = useCallback((conversation) => {
-        // Leave previous conversation room
         if (activeConversation) {
             leaveConversation(activeConversation._id);
         }
 
         setActiveConversation(conversation);
+        setMessages([]);
+        setPage(1);
+        setHasMore(false);
         joinConversation(conversation._id);
-        fetchMessages(conversation._id);
+        fetchMessages(conversation._id, 1);
         setMobileSidebarOpen(false);
     }, [activeConversation, joinConversation, leaveConversation, fetchMessages]);
 
@@ -68,36 +103,57 @@ const ChatPage = () => {
         }
     };
 
-    // Listen for new messages via socket
+    // Socket listeners for new messages, conversation updates, and read receipts
     useEffect(() => {
         if (!socket) return;
 
         const handleNewMessage = (message) => {
-            if (activeConversation && message.conversationId === activeConversation._id) {
-                setMessages(prev => [...prev, message]);
+            const currentConv = activeConvRef.current;
+            if (currentConv && message.conversationId === currentConv._id) {
+                setMessages(prev => {
+                    // Deduplicate in case socket fires twice
+                    if (prev.some(m => m._id === message._id)) return prev;
+                    return [...prev, message];
+                });
             }
-            // Update conversation list
+            // Update conversation list (move to top, update lastMessage)
             fetchConversations();
         };
 
-        const handleConversationUpdated = () => {
-            fetchConversations();
+        const handleConversationUpdated = ({ conversationId, lastMessage }) => {
+            setConversations(prev =>
+                prev.map(conv =>
+                    conv._id === conversationId
+                        ? { ...conv, lastMessage, updatedAt: new Date().toISOString() }
+                        : conv
+                ).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+            );
+        };
+
+        const handleMessagesRead = ({ conversationId, readBy, messageIds }) => {
+            const currentConv = activeConvRef.current;
+            if (currentConv && conversationId === currentConv._id) {
+                setMessages(prev =>
+                    prev.map(msg => {
+                        if (messageIds.includes(msg._id) && !msg.readBy?.includes(readBy)) {
+                            return { ...msg, readBy: [...(msg.readBy || []), readBy] };
+                        }
+                        return msg;
+                    })
+                );
+            }
         };
 
         socket.on('newMessage', handleNewMessage);
         socket.on('conversationUpdated', handleConversationUpdated);
+        socket.on('messagesRead', handleMessagesRead);
 
         return () => {
             socket.off('newMessage', handleNewMessage);
             socket.off('conversationUpdated', handleConversationUpdated);
+            socket.off('messagesRead', handleMessagesRead);
         };
-    }, [socket, activeConversation, fetchConversations]);
-
-    // Handle message sent (add to local state immediately)
-    const handleMessageSent = (message) => {
-        // Message will arrive via socket, but we can optimistically add it
-        // The socket handler will deduplicate
-    };
+    }, [socket, fetchConversations]);
 
     const handleLogout = async () => {
         if (activeConversation) {
@@ -114,6 +170,7 @@ const ChatPage = () => {
                 onSelectConversation={handleSelectConversation}
                 onNewChat={() => setShowUserList(true)}
                 onLogout={handleLogout}
+                onProfileClick={() => setShowProfile(true)}
                 currentUser={user}
                 onlineUsers={onlineUsers}
                 loading={loadingConversations}
@@ -126,8 +183,10 @@ const ChatPage = () => {
                 messages={messages}
                 currentUser={user}
                 onlineUsers={onlineUsers}
-                onMessageSent={handleMessageSent}
                 onBackClick={() => setMobileSidebarOpen(true)}
+                hasMore={hasMore}
+                loadingMore={loadingMessages}
+                onLoadMore={loadOlderMessages}
             />
 
             {showUserList && (
@@ -136,6 +195,10 @@ const ChatPage = () => {
                     onClose={() => setShowUserList(false)}
                     currentUserId={user?.id}
                 />
+            )}
+
+            {showProfile && (
+                <ProfileModal onClose={() => setShowProfile(false)} />
             )}
         </div>
     );

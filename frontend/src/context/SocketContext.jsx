@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '../utils/api';
 
 const SocketContext = createContext(null);
 
@@ -22,7 +23,7 @@ export const SocketProvider = ({ children }) => {
     useEffect(() => {
         if (isAuthenticated && token) {
             // Create socket connection
-            const newSocket = io('http://localhost:4400', {
+            const newSocket = io(API_BASE_URL, {
                 auth: { token },
                 reconnection: true,
                 reconnectionDelay: 1000,

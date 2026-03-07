@@ -5,7 +5,7 @@ const userPermissionSchema = new mongoose.Schema({
     permissions: [{ permission_name: String, permission_value: [String]}]
     
   },
-  { timestaps: true }
+  { timestamps: true }
 );
   
 const UserPermission = mongoose.model('UserPermission', userPermissionSchema);

@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useSocket } from '../context/SocketContext';
 import './MessageInput.css';
 
-const MessageInput = ({ conversationId, onMessageSent }) => {
+const MessageInput = ({ conversationId }) => {
     const [message, setMessage] = useState('');
     const { sendMessage, emitTyping, emitStopTyping } = useSocket();
     const typingTimeoutRef = useRef(null);
@@ -40,10 +40,6 @@ const MessageInput = ({ conversationId, onMessageSent }) => {
         }
         isTypingRef.current = false;
         emitStopTyping(conversationId);
-
-        if (onMessageSent) {
-            onMessageSent({ content: trimmed });
-        }
     };
 
     const handleKeyDown = (e) => {
