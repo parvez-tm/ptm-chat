@@ -50,11 +50,6 @@ const RegisterPage = () => {
 
     return (
         <div className="auth-page">
-            <div className="auth-bg-orbs">
-                <div className="orb orb-1"></div>
-                <div className="orb orb-2"></div>
-                <div className="orb orb-3"></div>
-            </div>
             <div className="auth-card auth-card--register">
                 <div className="auth-header">
                     <div className="auth-logo">
@@ -78,7 +73,7 @@ const RegisterPage = () => {
                                 type="text"
                                 value={formData.firstName}
                                 onChange={handleChange}
-                                placeholder="First name"
+                                placeholder="John"
                                 required
                             />
                         </div>
@@ -90,37 +85,38 @@ const RegisterPage = () => {
                                 type="text"
                                 value={formData.lastName}
                                 onChange={handleChange}
-                                placeholder="Last name"
+                                placeholder="Doe"
                                 required
                             />
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label htmlFor="userName">Username</label>
-                        <input
-                            id="userName"
-                            name="userName"
-                            type="text"
-                            value={formData.userName}
-                            onChange={handleChange}
-                            placeholder="Choose a username"
-                            required
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="reg-email">Email</label>
-                        <input
-                            id="reg-email"
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            placeholder="Enter your email"
-                            required
-                            autoComplete="email"
-                        />
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label htmlFor="userName">Username</label>
+                            <input
+                                id="userName"
+                                name="userName"
+                                type="text"
+                                value={formData.userName}
+                                onChange={handleChange}
+                                placeholder="johndoe"
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="reg-email">Email Address</label>
+                            <input
+                                id="reg-email"
+                                name="email"
+                                type="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                placeholder="john@example.com"
+                                required
+                                autoComplete="email"
+                            />
+                        </div>
                     </div>
 
                     <div className="form-row">
@@ -138,14 +134,14 @@ const RegisterPage = () => {
                             />
                         </div>
                         <div className="form-group">
-                            <label htmlFor="confirmPassword">Confirm</label>
+                            <label htmlFor="confirmPassword">Confirm Password</label>
                             <input
                                 id="confirmPassword"
                                 name="confirmPassword"
                                 type="password"
                                 value={formData.confirmPassword}
                                 onChange={handleChange}
-                                placeholder="Confirm password"
+                                placeholder="Re-enter password"
                                 required
                                 autoComplete="new-password"
                             />

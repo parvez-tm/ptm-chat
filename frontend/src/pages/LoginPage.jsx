@@ -28,11 +28,6 @@ const LoginPage = () => {
 
     return (
         <div className="auth-page">
-            <div className="auth-bg-orbs">
-                <div className="orb orb-1"></div>
-                <div className="orb orb-2"></div>
-                <div className="orb orb-3"></div>
-            </div>
             <div className="auth-card">
                 <div className="auth-header">
                     <div className="auth-logo">
@@ -48,13 +43,13 @@ const LoginPage = () => {
 
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="form-group">
-                        <label htmlFor="email">Email</label>
+                        <label htmlFor="email">Email Address</label>
                         <input
                             id="email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Enter your email"
+                            placeholder="you@example.com"
                             required
                             autoComplete="email"
                         />
