@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
-import { API_BASE_URL } from '../utils/api';
+
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
 const SocketContext = createContext(null);
 
@@ -23,8 +24,9 @@ export const SocketProvider = ({ children }) => {
     useEffect(() => {
         if (isAuthenticated && token) {
             // Create socket connection
-            const newSocket = io(API_BASE_URL, {
+            const newSocket = io(SOCKET_URL, {
                 auth: { token },
+                path: '/ptm-chat-socket.io',
                 reconnection: true,
                 reconnectionDelay: 1000,
                 reconnectionAttempts: 10,
