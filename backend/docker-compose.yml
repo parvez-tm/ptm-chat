@@ -7,7 +7,7 @@ services:
     container_name: ptm-mongo
     restart: always
     ports:
-      - "127.0.0.1:27017:27017"
+      - "10.0.0.252:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
@@ -20,7 +20,7 @@ services:
     container_name: ptm-redis
     restart: always
     ports:
-      - "127.0.0.1:6379:6379"
+      - "10.0.0.252:6379:6379"
     command: >
       redis-server --requirepass ${REDIS_PASSWORD:-ptmchat2026} --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
