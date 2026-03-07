@@ -9,7 +9,7 @@ import './App.css';
 
 function App() {
   return (
-    <Router basename="/chat">
+    <Router basename="/ptm-chat">
       <AuthProvider>
         <SocketProvider>
           <Routes>
