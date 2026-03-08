@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useSocket } from '../context/SocketContext';
 import MessageInput from './MessageInput';
 import './ChatWindow.css';
@@ -46,21 +46,40 @@ const ChatWindow = ({ conversation, messages, currentUser, onlineUsers, onBackCl
         prevMessagesLenRef.current = messages.length;
     }, [messages]);
 
-    // Scroll-to-top detection for loading older messages
-    const handleScroll = useCallback(() => {
-        const container = messagesContainerRef.current;
-        if (!container || !hasMore || loadingMore) return;
+    // Sentinel ref for IntersectionObserver-based infinite scroll
+    const sentinelRef = useRef(null);
+    const prevScrollHeightRef = useRef(0);
 
-        if (container.scrollTop < 60) {
-            // Remember scroll height before prepending
-            const prevScrollHeight = container.scrollHeight;
-            onLoadMore();
-            // After messages are prepended, restore scroll position
-            requestAnimationFrame(() => {
+    // Restore scroll position after older messages are prepended
+    useEffect(() => {
+        if (prevScrollHeightRef.current > 0) {
+            const container = messagesContainerRef.current;
+            if (container) {
                 const newScrollHeight = container.scrollHeight;
-                container.scrollTop = newScrollHeight - prevScrollHeight;
-            });
+                container.scrollTop = newScrollHeight - prevScrollHeightRef.current;
+            }
+            prevScrollHeightRef.current = 0;
         }
+    }, [messages]);
+
+    // IntersectionObserver: auto-load older messages when sentinel is visible
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        const container = messagesContainerRef.current;
+        if (!sentinel || !container) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !loadingMore) {
+                    prevScrollHeightRef.current = container.scrollHeight;
+                    onLoadMore();
+                }
+            },
+            { root: container, threshold: 0.1 }
+        );
+
+        observer.observe(sentinel);
+        return () => observer.disconnect();
     }, [hasMore, loadingMore, onLoadMore]);
 
     // Listen for typing events
@@ -187,17 +206,14 @@ const ChatWindow = ({ conversation, messages, currentUser, onlineUsers, onBackCl
             </div>
 
             {/* Messages Area */}
-            <div className="messages-container" ref={messagesContainerRef} onScroll={handleScroll}>
+            <div className="messages-container" ref={messagesContainerRef}>
+                {/* Sentinel for infinite scroll */}
+                <div ref={sentinelRef} style={{ height: 1 }} />
+
                 {loadingMore && (
                     <div className="load-more-indicator">
                         <div className="loading-spinner loading-spinner--small"></div>
                         <span>Loading older messages...</span>
-                    </div>
-                )}
-
-                {hasMore && !loadingMore && (
-                    <div className="load-more-indicator">
-                        <button className="load-more-btn" onClick={onLoadMore}>Load older messages</button>
                     </div>
                 )}
 
