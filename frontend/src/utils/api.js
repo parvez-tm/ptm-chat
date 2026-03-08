@@ -21,24 +21,38 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response interceptor — handle 401 / token refresh
+// Response interceptor — handle 401 / 403 / token refresh
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        const status = error.response?.status;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Invalid or expired token — redirect to login
+        if (status === 403) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return Promise.reject(error);
+        }
+
+        if (status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
             try {
                 const refreshToken = localStorage.getItem('refreshToken');
-                if (refreshToken) {
-                    const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
-                    localStorage.setItem('token', data.data.token);
-                    localStorage.setItem('refreshToken', data.data.refreshToken);
-                    originalRequest.headers.Authorization = `Bearer ${data.data.token}`;
-                    return api(originalRequest);
+                if (!refreshToken) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                    return Promise.reject(error);
                 }
+                const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+                localStorage.setItem('token', data.data.token);
+                localStorage.setItem('refreshToken', data.data.refreshToken);
+                originalRequest.headers.Authorization = `Bearer ${data.data.token}`;
+                return api(originalRequest);
             } catch (refreshError) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('refreshToken');
