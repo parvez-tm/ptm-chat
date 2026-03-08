@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+const SOCKET_PATH = import.meta.env.VITE_SOCKET_PATH || '/socket.io';
 
 const SocketContext = createContext(null);
 
@@ -26,7 +27,7 @@ export const SocketProvider = ({ children }) => {
             // Create socket connection
             const newSocket = io(SOCKET_URL, {
                 auth: { token },
-                path: '/ptm-chat-socket.io',
+                path: SOCKET_PATH,
                 reconnection: true,
                 reconnectionDelay: 1000,
                 reconnectionAttempts: 10,

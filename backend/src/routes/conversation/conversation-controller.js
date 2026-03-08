@@ -1,6 +1,8 @@
 import Conversation from './conversation-model.js';
 import User from '../user/user-model.js';
 import Message from '../message/message-model.js';
+import { io } from '../../app.js';
+import redisClient from '../../config/redis.js';
 
 export const createOrGetConversation = async (req, res) => {
     try {
@@ -40,6 +42,12 @@ export const createOrGetConversation = async (req, res) => {
         // Populate the response
         conversation = await Conversation.findById(conversation._id)
             .populate('participants', 'userName firstName lastName email pic isOnline lastSeen');
+
+        // Notify the other participant in real-time
+        const otherSocketId = await redisClient.hget('socket_sessions', participantId);
+        if (otherSocketId) {
+            io.to(otherSocketId).emit('newConversation', conversation);
+        }
 
         return res.status(201).json({ data: conversation, message: 'Conversation created' });
     } catch (error) {

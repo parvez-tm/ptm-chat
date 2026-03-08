@@ -121,13 +121,26 @@ const ChatPage = () => {
         };
 
         const handleConversationUpdated = ({ conversationId, lastMessage }) => {
-            setConversations(prev =>
-                prev.map(conv =>
+            setConversations(prev => {
+                const exists = prev.some(conv => conv._id === conversationId);
+                if (!exists) {
+                    // Conversation not in list yet — refetch to pick it up
+                    fetchConversations();
+                    return prev;
+                }
+                return prev.map(conv =>
                     conv._id === conversationId
                         ? { ...conv, lastMessage, updatedAt: new Date().toISOString() }
                         : conv
-                ).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-            );
+                ).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            });
+        };
+
+        const handleNewConversation = (conversation) => {
+            setConversations(prev => {
+                if (prev.some(c => c._id === conversation._id)) return prev;
+                return [conversation, ...prev];
+            });
         };
 
         const handleMessagesRead = ({ conversationId, readBy, messageIds }) => {
@@ -146,11 +159,13 @@ const ChatPage = () => {
 
         socket.on('newMessage', handleNewMessage);
         socket.on('conversationUpdated', handleConversationUpdated);
+        socket.on('newConversation', handleNewConversation);
         socket.on('messagesRead', handleMessagesRead);
 
         return () => {
             socket.off('newMessage', handleNewMessage);
             socket.off('conversationUpdated', handleConversationUpdated);
+            socket.off('newConversation', handleNewConversation);
             socket.off('messagesRead', handleMessagesRead);
         };
     }, [socket, fetchConversations]);
