@@ -335,6 +335,21 @@ if (page === 1) {
 |---|---|---|---|
 | List | `chat:<conversationId>:messages` | JSON-stringified message objects | 3600 s (1 hour) |
 
+**Cache invalidation on read receipts** — [socket.js](file:///e:/PTM%20Chat/backend/src/socket/socket.js) and [message-controller.js](file:///e:/PTM%20Chat/backend/src/routes/message/message-controller.js):
+
+When messages are marked as read, the cached messages would contain stale `readBy` arrays (only showing the sender). To prevent the UI from showing single-check marks on messages that have actually been read, the cache is **invalidated** whenever `readBy` is updated:
+
+```javascript
+// After Message.updateMany({ $addToSet: { readBy: userId } })
+await redisClient.del(`chat:${conversationId}:messages`);
+```
+
+This happens in two places:
+1. **Socket.IO `messageRead` handler** — when the recipient reads messages in real-time
+2. **REST `PUT /message/read/:conversationId`** — when read status is updated via the API
+
+The next page-1 request rebuilds the cache from MongoDB with the correct `readBy` data.
+
 ### Strategy Decisions
 
 | Decision | Choice | Reason |
@@ -343,6 +358,7 @@ if (page === 1) {
 | `LTRIM` to 50 | ✅ | Caps memory usage per conversation |
 | 1-hour TTL | ✅ | Stale chats auto-evict; active ones keep refreshing |
 | `LPUSH` (prepend) | ✅ | Newest messages at index 0, natural sort for `LRANGE` |
+| `DEL` on read receipts | ✅ | Ensures `readBy` is never stale in cached messages |
 
 ---
 
@@ -478,6 +494,6 @@ graph LR
 | [redis.js](file:///e:/PTM%20Chat/backend/src/config/redis.js) | Client singleton with retry/reconnect config |
 | [auth-controller.js](file:///e:/PTM%20Chat/backend/src/routes/auth/auth-controller.js) | `SETEX` for blacklisting, `SREM` for logout presence cleanup |
 | [auth-middleware.js](file:///e:/PTM%20Chat/backend/src/middleware/auth-middleware.js) | `GET` for blacklist check on every HTTP request |
-| [socket.js](file:///e:/PTM%20Chat/backend/src/socket/socket.js) | `HSET/HDEL/HGET` for sessions, `SADD/SREM/SMEMBERS` for presence, `LPUSH/LTRIM/EXPIRE` for message cache, `GET` for blacklist on WebSocket auth |
-| [message-controller.js](file:///e:/PTM%20Chat/backend/src/routes/message/message-controller.js) | `LPUSH/LTRIM/EXPIRE` for write-through cache, `LRANGE` for cache reads |
+| [socket.js](file:///e:/PTM%20Chat/backend/src/socket/socket.js) | `HSET/HDEL/HGET` for sessions, `SADD/SREM/SMEMBERS` for presence, `LPUSH/LTRIM/EXPIRE` for message cache, `DEL` for cache invalidation on read receipts, `GET` for blacklist on WebSocket auth |
+| [message-controller.js](file:///e:/PTM%20Chat/backend/src/routes/message/message-controller.js) | `LPUSH/LTRIM/EXPIRE` for write-through cache, `LRANGE` for cache reads, `DEL` for cache invalidation on read receipts |
 | [rate-limiter.js](file:///e:/PTM%20Chat/backend/src/middleware/rate-limiter.js) | `INCR/EXPIRE/TTL` for sliding-window counters |

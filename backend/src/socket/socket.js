@@ -158,8 +158,11 @@ export const initializeSocket = (io) => {
                     { $addToSet: { readBy: userId } }
                 );
 
-                // Notify the sender
-                socket.to(`conversation:${conversationId}`).emit('messagesRead', {
+                // Invalidate Redis message cache so next fetch gets fresh readBy
+                await redisClient.del(`chat:${conversationId}:messages`);
+
+                // Notify all participants in the room (including the reader for local state sync)
+                io.to(`conversation:${conversationId}`).emit('messagesRead', {
                     conversationId,
                     readBy: userId,
                     messageIds

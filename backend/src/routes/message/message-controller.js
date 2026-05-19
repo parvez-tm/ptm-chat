@@ -147,6 +147,9 @@ export const markAsRead = async (req, res) => {
             }
         );
 
+        // Invalidate Redis message cache so next fetch gets fresh readBy
+        await redisClient.del(`chat:${conversationId}:messages`);
+
         return res.status(200).json({ message: 'Messages marked as read' });
     } catch (error) {
         return res.status(500).json({ message: 'Server error', error: error.message });

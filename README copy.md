@@ -306,7 +306,7 @@ Redis serves as a complementary in-memory layer for speed-critical, short-lived 
 | 1 | **Token Blacklisting** | `STRING` | `bl:{jwt_token}` | Revoked tokens stored with TTL matching token expiry. Every auth request checks Redis first. |
 | 2 | **Online Presence** | `SET` | `online_users` | O(1) add/remove/check. Broadcast on connect/disconnect. |
 | 3 | **Socket Session Mapping** | `HASH` | `socket_sessions` | Maps `userId → socketId` for targeted message delivery. |
-| 4 | **Message Cache** | `LIST` | `chat:{conversationId}:messages` | Last 50 messages per conversation, 1-hour TTL. Page 1 served from cache. Invalidated on read receipts to prevent stale `readBy` data. |
+| 4 | **Message Cache** | `LIST` | `chat:{conversationId}:messages` | Last 50 messages per conversation, 1-hour TTL. Page 1 served from cache. |
 | 5 | **Rate Limiting** | `STRING` | `rl:{prefix}:{ip}` | Atomic `INCR` with auto-expiring keys. Login: 5 req/min, Messages: 20 req/10s. |
 
 > See [redis_documentation.md](redis_documentation.md) for full implementation details with sequence diagrams.
