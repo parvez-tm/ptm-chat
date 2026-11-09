@@ -1,9 +1,9 @@
 # PTM Chat — Production Deployment Guide
 
-> **Domain**: `ptm.software`
-> **Frontend**: `https://ptm.software/chat`
-> **API**: `https://ptm.software/ptm-chat-api`
-> **Socket.IO**: `https://ptm.software/ptm-chat-socket.io`
+> **Domain**: `ptmsoftware.live`
+> **Frontend**: `https://ptmsoftware.live/chat`
+> **API**: `https://ptmsoftware.live/ptm-chat-api`
+> **Socket.IO**: `https://ptmsoftware.live/ptm-chat-socket.io`
 
 ---
 
@@ -196,7 +196,7 @@ PORT=4400
 NODE_ENV=production
 
 # Client URL (for CORS)
-CLIENT_URL=https://ptm.software
+CLIENT_URL=https://ptmsoftware.live
 
 # Docker MongoDB
 MONGO_INITDB_ROOT_USERNAME=ptmadmin
@@ -266,7 +266,7 @@ cd /var/www/ptm-chat/frontend
 # The .env.production file is already configured:
 cat .env.production
 # VITE_API_URL=/ptm-chat-api
-# VITE_SOCKET_URL=https://ptm.software
+# VITE_SOCKET_URL=https://ptmsoftware.live
 ```
 
 ### 4.7 Build Frontend
@@ -293,7 +293,7 @@ The `dist/` folder contains the static files that Nginx will serve.
 ### 5.1 Create Site Configuration
 
 ```bash
-sudo nano /etc/nginx/sites-available/ptm.software
+sudo nano /etc/nginx/sites-available/ptmsoftware.live
 ```
 
 Paste the following configuration:
@@ -311,18 +311,18 @@ upstream ptm_backend {
 # HTTP → HTTPS redirect
 server {
     listen 80;
-    server_name ptm.software www.ptm.software;
+    server_name ptmsoftware.live www.ptmsoftware.live;
     return 301 https://$server_name$request_uri;
 }
 
 # Main HTTPS server
 server {
     listen 443 ssl http2;
-    server_name ptm.software www.ptm.software;
+    server_name ptmsoftware.live www.ptmsoftware.live;
 
     # SSL certificates (Certbot will fill these)
-    ssl_certificate     /etc/letsencrypt/live/ptm.software/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ptm.software/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/ptmsoftware.live/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ptmsoftware.live/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
@@ -420,7 +420,7 @@ server {
 
 ```bash
 # Create symlink to enable
-sudo ln -s /etc/nginx/sites-available/ptm.software /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/ptmsoftware.live /etc/nginx/sites-enabled/
 
 # Remove default site
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -452,14 +452,14 @@ sudo systemctl reload nginx
 
 ```bash
 # Temporarily simplify nginx config to just HTTP
-sudo nano /etc/nginx/sites-available/ptm.software
+sudo nano /etc/nginx/sites-available/ptmsoftware.live
 ```
 
 Replace the entire file temporarily with:
 ```nginx
 server {
     listen 80;
-    server_name ptm.software www.ptm.software;
+    server_name ptmsoftware.live www.ptmsoftware.live;
 
     location / {
         root /var/www/html;
@@ -471,7 +471,7 @@ server {
 sudo nginx -t && sudo systemctl reload nginx
 
 # Run Certbot
-sudo certbot --nginx -d ptm.software -d www.ptm.software
+sudo certbot --nginx -d ptmsoftware.live -d www.ptmsoftware.live
 ```
 
 After Certbot succeeds, **replace the Nginx config back** with the full configuration from Section 5.1, then:
@@ -708,7 +708,7 @@ pm2 restart ptm-chat-api
 
 ```bash
 # Test socket endpoint
-curl -v https://ptm.software/ptm-chat-socket.io/?EIO=4&transport=polling
+curl -v https://ptmsoftware.live/ptm-chat-socket.io/?EIO=4&transport=polling
 
 # Check Nginx is proxying correctly
 sudo tail -20 /var/log/nginx/error.log
@@ -745,7 +745,7 @@ docker exec ptm-redis redis-cli -a YOUR_REDIS_PASSWORD ping
 ```bash
 # Verify CLIENT_URL in backend .env matches your domain exactly
 grep CLIENT_URL /var/www/ptm-chat/backend/.env
-# Should be: CLIENT_URL=https://ptm.software
+# Should be: CLIENT_URL=https://ptmsoftware.live
 
 # Restart backend after .env changes
 pm2 restart ptm-chat-api
@@ -839,9 +839,9 @@ cd ../frontend && npm install && npm run build
 └── backups/                    ← MongoDB backup archives
 
 /etc/nginx/sites-available/
-└── ptm.software                ← Nginx config
+└── ptmsoftware.live                ← Nginx config
 
-/etc/letsencrypt/live/ptm.software/
+/etc/letsencrypt/live/ptmsoftware.live/
 ├── fullchain.pem               ← SSL certificate
 └── privkey.pem                 ← SSL private key
 

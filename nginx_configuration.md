@@ -25,7 +25,7 @@
 
 ## Full Merged Config
 
-**File**: `/etc/nginx/sites-available/ptm.software`
+**File**: `/etc/nginx/sites-available/ptmsoftware.live`
 
 ```nginx
 #############################################
@@ -43,7 +43,7 @@ server {
     listen 80;
     listen [::]:80;
 
-    server_name ptm.software www.ptm.software;
+    server_name ptmsoftware.live www.ptmsoftware.live;
 
     return 301 https://$host$request_uri;
 }
@@ -55,13 +55,13 @@ server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
 
-    server_name ptm.software www.ptm.software;
+    server_name ptmsoftware.live www.ptmsoftware.live;
 
     #########################################
     # SSL
     #########################################
-    ssl_certificate     /etc/letsencrypt/live/ptm.software/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ptm.software/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/ptmsoftware.live/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ptmsoftware.live/privkey.pem;
 
     #########################################
     # SECURITY HEADERS
@@ -189,7 +189,7 @@ The PTM Chat routes (`/chat/`, `/ptm-chat-api/`, `/ptm-chat-socket.io/`, `/uploa
 
 ```bash
 # 1. Edit the config
-sudo nano /etc/nginx/sites-available/ptm.software
+sudo nano /etc/nginx/sites-available/ptmsoftware.live
 
 # 2. Paste the merged config above
 
@@ -200,8 +200,8 @@ sudo nginx -t
 sudo systemctl reload nginx
 
 # 5. Verify both sites work
-curl -I https://ptm.software/              # → Next.js (200)
-curl -I https://ptm.software/chat/         # → PTM Chat frontend (200)
-curl -I https://ptm.software/computer      # → Static page (200)
-curl    https://ptm.software/ptm-chat-api/health  # → {"status":"ok"}
+curl -I https://ptmsoftware.live/              # → Next.js (200)
+curl -I https://ptmsoftware.live/chat/         # → PTM Chat frontend (200)
+curl -I https://ptmsoftware.live/computer      # → Static page (200)
+curl    https://ptmsoftware.live/ptm-chat-api/health  # → {"status":"ok"}
 ```
